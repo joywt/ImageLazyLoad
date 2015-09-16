@@ -18,6 +18,7 @@
 @property (nonatomic,strong) NSValue *targetRect;
 @property (nonatomic,strong) NSString *imageDownLoadValue;
 @property (nonatomic,strong) NSString *headerFiled;
+@property (nonatomic,strong) UIImage *defaultImage;
 @end
 
 @implementation ImageLazyLoadViewController
@@ -48,7 +49,7 @@
     [super didReceiveMemoryWarning];
     // Dispose of any resources that can be recreated.
 }
-
+#pragma mark - UITableViewDataSource,UITableViewDelegate
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section{
     return 0;
 }
@@ -77,15 +78,18 @@
     self.targetRect = nil;
     [self loadImageForVisibleCells];
 }
-- (void)setImageDownLoadValue:(NSString *)value forHTTPHeaderField:(NSString *)headerFiled{
-    self.imageDownLoadValue = value;
-    self.headerFiled = headerFiled;
+#pragma mark - public method
+
+
+- (void)setCellImageView:(UITableViewCell *)cell imageView:(UIImageView *)imageView andImageViewURL:(NSURL *)targetURL{
+    objc_setAssociatedObject(cell, LazyLoadImageViewKey, imageView, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(cell, LazyLoadImageURLKey, targetURL, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 - (void)setupCell:(UITableViewCell *)cell cellForRowAtIndexPath:(NSIndexPath *)indexPath{
-
-    SDWebImageDownloader *downloader = [[SDWebImageManager sharedManager] imageDownloader];
-    [downloader setValue:self.imageDownLoadValue forHTTPHeaderField:self.headerFiled];
-    
+    if (self.imageDownLoadValue && self.headerFiled){
+        SDWebImageDownloader *downloader = [[SDWebImageManager sharedManager] imageDownloader];
+        [downloader setValue:self.imageDownLoadValue forHTTPHeaderField:self.headerFiled];
+    }
     UIImageView *cellImageView =  [self getCellImageView:cell];
     NSURL *targetURL = [self getTargetURL:cell];
     if (cellImageView && targetURL && ![[cellImageView sd_imageURL] isEqual:targetURL]) {
@@ -102,9 +106,9 @@
         }
         
         if (shouldLoadImage) {
-            [cellImageView sd_setImageWithURL:targetURL placeholderImage:nil options:SDWebImageHandleCookies completed:^(UIImage *image, NSError *error, SDImageCacheType cacheType, NSURL *imageURL) {
+            [cellImageView sd_setImageWithURL:targetURL placeholderImage:self.defaultImage options:SDWebImageHandleCookies completed:^(UIImage *image, NSError *error, SDImageCacheType cacheType, NSURL *imageURL) {
                 if ([imageURL isEqual:targetURL]) {
-                    [UIView animateWithDuration:0.2 animations:^{
+                    [UIView animateWithDuration:0.3 animations:^{
                         cellImageView.alpha = 1.0;
                     }];
                 }
@@ -114,17 +118,25 @@
     }
 
 }
+
+- (void)setImageDownLoadValue:(NSString *)value forHTTPHeaderField:(NSString *)headerFiled{
+    self.imageDownLoadValue = value;
+    self.headerFiled = headerFiled;
+}
+
+- (void)setImageViewPlaceholderImage:(UIImage *)image{
+    self.defaultImage = image;
+}
+
+
+
+#pragma mark - private method
 - (void)loadImageForVisibleCells{
     NSArray *cells = [self.tableView visibleCells];
     [cells enumerateObjectsUsingBlock:^(UITableViewCell *cell, NSUInteger idx, BOOL *stop) {
         NSIndexPath *indexPath = [self.tableView indexPathForCell:cell];
         [self setupCell:cell cellForRowAtIndexPath:indexPath];
     }];
-}
-
-- (void)setCellImageView:(UITableViewCell *)cell imageView:(UIImageView *)imageView andImageViewURL:(NSURL *)targetURL{
-    objc_setAssociatedObject(cell, LazyLoadImageViewKey, imageView, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    objc_setAssociatedObject(cell, LazyLoadImageURLKey, targetURL, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 - (UIImageView *)getCellImageView:(UITableViewCell *)cell{
     return objc_getAssociatedObject(cell,LazyLoadImageViewKey);
