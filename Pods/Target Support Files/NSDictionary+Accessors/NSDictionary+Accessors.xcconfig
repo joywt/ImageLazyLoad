@@ -1,0 +1,1 @@
+NSDICTIONARY_ACCESSORS_OTHER_LDFLAGS = -framework "Foundation"
